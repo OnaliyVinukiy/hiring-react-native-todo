@@ -1,3 +1,9 @@
+export interface Todo {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+}
+
 // Unique key for AsyncStorage
 export const STORAGE_KEY = "@Tasked_Todos";
 
@@ -12,7 +18,7 @@ export const COLORS = {
 };
 
 // Initial placeholder data
-export const INITIAL_TODOS = [
+export const INITIAL_TODOS: Todo[] = [
   { id: "1", title: "typography", isCompleted: false },
   { id: "2", title: "layout", isCompleted: false },
   { id: "3", title: "color", isCompleted: false },

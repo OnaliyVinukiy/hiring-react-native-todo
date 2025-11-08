@@ -1,3 +1,4 @@
+// App.tsx
 import React, { useState, useEffect, FC } from "react";
 import {
   View,
@@ -11,7 +12,7 @@ import {
   ListRenderItem,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { COLORS, Todo } from "./constants";
+import { COLORS, Todo, SubTask } from "./constants";
 import { loadTodos, saveTodos } from "./services/storage";
 import TodoItem from "./components/TodoItem";
 
@@ -27,10 +28,18 @@ const FloatingActionButton: FC<FABProps> = ({ onPress }) => (
 interface AddTaskModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onAdd: (title: string) => void;
+  onAdd: (title: string, parentId?: string) => void;
+  isSubTask?: boolean;
+  parentTodo?: Todo | null;
 }
 
-const AddTaskModal: FC<AddTaskModalProps> = ({ isVisible, onClose, onAdd }) => {
+const AddTaskModal: FC<AddTaskModalProps> = ({
+  isVisible,
+  onClose,
+  onAdd,
+  isSubTask = false,
+  parentTodo,
+}) => {
   const [newTaskTitle, setNewTaskTitle] = useState<string>("");
 
   const handleAdd = (): void => {
@@ -50,10 +59,16 @@ const AddTaskModal: FC<AddTaskModalProps> = ({ isVisible, onClose, onAdd }) => {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>Add New Task</Text>
+          <Text style={styles.modalTitle}>
+            {isSubTask
+              ? `Add Sub-task to "${parentTodo?.title}"`
+              : "Add New Task"}
+          </Text>
           <TextInput
             style={styles.modalInput}
-            placeholder="What needs to be done?"
+            placeholder={
+              isSubTask ? "What needs to be done?" : "What needs to be done?"
+            }
             placeholderTextColor={COLORS.lightText}
             value={newTaskTitle}
             onChangeText={setNewTaskTitle}
@@ -92,6 +107,11 @@ const App: FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
+  const [isSubTaskModalVisible, setIsSubTaskModalVisible] =
+    useState<boolean>(false);
+  const [selectedParentTodo, setSelectedParentTodo] = useState<Todo | null>(
+    null
+  );
 
   // Load data from storage on component mount
   useEffect(() => {
@@ -111,13 +131,34 @@ const App: FC = () => {
   }, [todos, isLoading]);
 
   // Handlers
-  const handleAddTask = (title: string): void => {
-    const newTodo: Todo = {
-      id: Date.now().toString(),
-      title: title,
-      isCompleted: false,
-    };
-    setTodos((prevTodos) => [...prevTodos, newTodo]);
+  const handleAddTask = (title: string, parentId?: string): void => {
+    if (parentId) {
+      // Add subtask
+      const newSubTask: SubTask = {
+        id: Date.now().toString(),
+        title: title,
+        isCompleted: false,
+        parentId: parentId,
+      };
+
+      setTodos((prevTodos) =>
+        prevTodos.map((todo) =>
+          todo.id === parentId
+            ? { ...todo, subTasks: [...todo.subTasks, newSubTask] }
+            : todo
+        )
+      );
+    } else {
+      // Add main task
+      const newTodo: Todo = {
+        id: Date.now().toString(),
+        title: title,
+        isCompleted: false,
+        subTasks: [],
+        isExpanded: false,
+      };
+      setTodos((prevTodos) => [...prevTodos, newTodo]);
+    }
   };
 
   const handleToggleTodo = (id: string): void => {
@@ -128,8 +169,40 @@ const App: FC = () => {
     );
   };
 
+  const handleToggleSubTask = (parentId: string, subTaskId: string): void => {
+    setTodos((prevTodos) =>
+      prevTodos.map((todo) =>
+        todo.id === parentId
+          ? {
+              ...todo,
+              subTasks: todo.subTasks.map((subTask) =>
+                subTask.id === subTaskId
+                  ? { ...subTask, isCompleted: !subTask.isCompleted }
+                  : subTask
+              ),
+            }
+          : todo
+      )
+    );
+  };
+
   const handleDeleteTodo = (id: string): void => {
     setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
+  };
+
+  const handleDeleteSubTask = (parentId: string, subTaskId: string): void => {
+    setTodos((prevTodos) =>
+      prevTodos.map((todo) =>
+        todo.id === parentId
+          ? {
+              ...todo,
+              subTasks: todo.subTasks.filter(
+                (subTask) => subTask.id !== subTaskId
+              ),
+            }
+          : todo
+      )
+    );
   };
 
   const handleEditTodo = (id: string, newTitle: string): void => {
@@ -140,12 +213,51 @@ const App: FC = () => {
     );
   };
 
+  const handleEditSubTask = (
+    parentId: string,
+    subTaskId: string,
+    newTitle: string
+  ): void => {
+    setTodos((prevTodos) =>
+      prevTodos.map((todo) =>
+        todo.id === parentId
+          ? {
+              ...todo,
+              subTasks: todo.subTasks.map((subTask) =>
+                subTask.id === subTaskId
+                  ? { ...subTask, title: newTitle }
+                  : subTask
+              ),
+            }
+          : todo
+      )
+    );
+  };
+
+  const handleToggleExpand = (id: string): void => {
+    setTodos((prevTodos) =>
+      prevTodos.map((todo) =>
+        todo.id === id ? { ...todo, isExpanded: !todo.isExpanded } : todo
+      )
+    );
+  };
+
+  const handleAddSubTask = (todo: Todo): void => {
+    setSelectedParentTodo(todo);
+    setIsSubTaskModalVisible(true);
+  };
+
   const renderItem: ListRenderItem<Todo> = ({ item }) => (
     <TodoItem
       todo={item}
       onToggle={handleToggleTodo}
+      onToggleSubTask={handleToggleSubTask}
       onDelete={handleDeleteTodo}
+      onDeleteSubTask={handleDeleteSubTask}
       onEdit={handleEditTodo}
+      onEditSubTask={handleEditSubTask}
+      onToggleExpand={handleToggleExpand}
+      onAddSubTask={handleAddSubTask}
     />
   );
 
@@ -165,7 +277,7 @@ const App: FC = () => {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            extraData={todos.map((t) => t.id + t.isCompleted).join()}
+            extraData={todos}
           />
         )}
       </View>
@@ -176,6 +288,17 @@ const App: FC = () => {
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onAdd={handleAddTask}
+      />
+
+      <AddTaskModal
+        isVisible={isSubTaskModalVisible}
+        onClose={() => {
+          setIsSubTaskModalVisible(false);
+          setSelectedParentTodo(null);
+        }}
+        onAdd={(title) => handleAddTask(title, selectedParentTodo?.id)}
+        isSubTask={true}
+        parentTodo={selectedParentTodo}
       />
     </SafeAreaView>
   );

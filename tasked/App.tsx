@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, Todo, SubTask } from "./constants";
 import { loadTodos, saveTodos } from "./services/storage";
 import TodoItem from "./components/TodoItem";
+import * as Font from 'expo-font';
 
 interface FABProps {
   onPress: () => void;
@@ -112,6 +113,19 @@ const App: FC = () => {
   const [selectedParentTodo, setSelectedParentTodo] = useState<Todo | null>(
     null
   );
+ 
+  // Load fonts
+  useEffect(() => {
+    const loadFonts = async () => {
+      await Font.loadAsync({
+        'TTFirsNeue-Regular': require('./assets/fonts/tt-firs-neue-trial.regular.ttf'),
+        'TTFirsNeue-Bold': require('./assets/fonts/tt-firs-neue-trial.bold.ttf'),
+        'DM-Sans-Regular': require('./assets/fonts/DMSans-Regular.ttf'),
+      });
+    };
+
+    loadFonts();
+  }, []);
 
   // Load data from storage on component mount
   useEffect(() => {
@@ -337,6 +351,7 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 34,
     fontWeight: "700",
+    fontFamily: 'TTFirsNeue-Bold',
     marginBottom: 15,
     marginTop: 35,
     color: COLORS.darkText,

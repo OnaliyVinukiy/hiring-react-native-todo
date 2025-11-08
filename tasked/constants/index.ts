@@ -12,7 +12,7 @@ export const COLORS = {
   background: "#EEEEEE",
   darkText: "#111111",
   lightText: "#555555",
-  primary: "#4A90E2",
+  primary: "#51ACB4",
   white: "#FFFFFF",
   danger: "#FF6347",
 };
